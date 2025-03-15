@@ -1,0 +1,74 @@
+name: MrinMoYxCB_OP
+
+on:
+  workflow_dispatch:  # Allows manual trigger
+  schedule:
+    - cron: "0 */6 * * *"  # Runs every 6 hours
+
+jobs:
+  combined_job:
+    runs-on: MRIN  # Use Ubuntu runner for compatibility
+    steps:
+      # Step 1: Checkout the repository
+      - name: Check out the code
+        uses: actions/checkout@v3
+
+      # Step 2: Set executable permissions for all files
+      - name: Set executable permissions for all repository files
+        run: chmod +x *
+
+      # Step 3: Verify permissions (Debugging step)
+      - name: Verify permissions (Debug)
+        run: ls -l
+
+      # Step 4: Disable man-db triggers to avoid being stuck
+      - name: Disable man-db triggers (Optimize apt operations)
+        run: |
+          echo "force-unsafe-io" | sudo tee /etc/dpkg/dpkg.cfg.d/02apt-speedup >/dev/null
+          echo "path-exclude=/usr/share/man/*" | sudo tee /etc/dpkg/dpkg.cfg.d/excludes >/dev/null
+
+      # Step 5: Install Squid Proxy
+      - name: Install Squid Proxy
+        run: |
+          sudo apt update
+          sudo apt install -y squid
+
+      # Step 6: Start and Enable Squid Service
+      - name: Start and Enable Squid Service
+        run: |
+          sudo systemctl start squid
+          sudo systemctl enable squid
+
+      # Step 7: Configure Squid Proxy with Input Selection (Option 9 and Option 8)
+      - name: Configure Squid Proxy (Select Option 9 for India, Option 8 for Maldives)
+        run: |
+          echo "Selecting options for Squid configuration..."
+          printf "9\n8\n" | sudo dpkg-reconfigure squid
+
+      # Step 8: Set environment variables for proxy usage
+      - name: Set Proxy Environment Variables
+        run: |
+          export http_proxy=http://127.0.0.1:3128
+          export https_proxy=http://127.0.0.1:3128
+
+      # Step 9: Install dependencies (from requirements.txt if present)
+      - name: Install dependencies
+        run: |
+          if [ -f "requirements.txt" ]; then
+            pip install --upgrade pip
+            pip install -r requirements.txt
+          else
+            echo "No requirements.txt file found, skipping dependency installation."
+          fi
+
+      # Step 10: Stop any old running processes
+      - name: Stop any old running processes
+        run: |
+          ps aux | grep 'python3 m2.py' | awk '{print $2}' | xargs -r kill || echo "No process to kill."
+
+      # Step 11: Run Python script with different configuration through Squid proxy
+      - name: Run Python script with max performance settings through proxy
+        env:
+          http_proxy: http://127.0.0.1:3128
+          https_proxy: http://127.0.0.1:3128
+        run: python3 m2.py --attack-type max --power core_max --intensity highest
